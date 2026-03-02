@@ -3,7 +3,8 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  base: mode === "production" ? "/groceries/" : "/",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -21,4 +22,4 @@ export default defineConfig({
   build: {
     outDir: "dist",
   },
-});
+}));

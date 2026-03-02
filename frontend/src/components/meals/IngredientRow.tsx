@@ -18,6 +18,8 @@ export function IngredientRow({ mealId, ingredient }: Props) {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(ingredient.name);
   const [editQty, setEditQty] = useState(ingredient.quantity ?? "");
+  const [editingQty, setEditingQty] = useState(false);
+  const [qtyDraft, setQtyDraft] = useState(ingredient.quantity ?? "");
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["meal", mealId] });
 
@@ -28,6 +30,19 @@ export function IngredientRow({ mealId, ingredient }: Props) {
     });
     setEditing(false);
     invalidate();
+  };
+
+  const handleSaveQty = async () => {
+    await updateIngredient(mealId, ingredient.id, {
+      quantity: qtyDraft.trim() || null,
+    });
+    setEditingQty(false);
+    invalidate();
+  };
+
+  const handleCancelQty = () => {
+    setQtyDraft(ingredient.quantity ?? "");
+    setEditingQty(false);
   };
 
   const handleDelete = async () => {
@@ -69,17 +84,49 @@ export function IngredientRow({ mealId, ingredient }: Props) {
     );
   }
 
+  const qtyArea = editingQty ? (
+    <div className="flex items-center gap-1 shrink-0">
+      <Input
+        value={qtyDraft}
+        onChange={(e) => setQtyDraft(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") handleSaveQty(); if (e.key === "Escape") handleCancelQty(); }}
+        placeholder="qty"
+        className="h-6 w-16 text-xs px-1.5"
+        autoFocus
+      />
+      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleSaveQty}>
+        <Check className="h-3 w-3" />
+      </Button>
+      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={handleCancelQty}>
+        <X className="h-3 w-3" />
+      </Button>
+    </div>
+  ) : ingredient.quantity ? (
+    <Badge
+      variant="secondary"
+      className="text-xs shrink-0 cursor-pointer hover:bg-secondary/60"
+      onClick={() => { setQtyDraft(ingredient.quantity ?? ""); setEditingQty(true); }}
+      title="Click to edit quantity"
+    >
+      {ingredient.quantity}
+    </Badge>
+  ) : (
+    <Badge
+      variant="outline"
+      className="text-xs shrink-0 cursor-pointer text-muted-foreground hover:text-foreground hover:border-foreground/40"
+      onClick={() => { setQtyDraft(""); setEditingQty(true); }}
+      title="Add quantity"
+    >
+      + qty
+    </Badge>
+  );
+
   return (
     <div className="flex items-center gap-2 py-1.5 group">
-      {ingredient.quantity && (
-        <Badge variant="secondary" className="text-xs shrink-0">
-          {ingredient.quantity}
-        </Badge>
-      )}
+      {qtyArea}
       <span className="flex-1 text-sm">{ingredient.name}</span>
 
       {ingredient.krogerProductName ? (
-        // Linked: show product name + hover actions
         <>
           <span className="text-xs text-muted-foreground truncate max-w-[140px]">
             {ingredient.krogerProductName}
@@ -99,7 +146,6 @@ export function IngredientRow({ mealId, ingredient }: Props) {
           </div>
         </>
       ) : (
-        // Unlinked: always-visible "Link product" CTA + hover edit/delete
         <>
           <ProductSearchPopover initialQuery={ingredient.name} onSelect={handleLinkProduct}>
             <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 shrink-0">

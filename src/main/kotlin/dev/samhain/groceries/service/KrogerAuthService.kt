@@ -7,6 +7,7 @@ import dev.samhain.groceries.entity.OAuthPkceState
 import dev.samhain.groceries.repository.KrogerConfigRepository
 import dev.samhain.groceries.repository.KrogerTokenRepository
 import dev.samhain.groceries.repository.OAuthPkceStateRepository
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.MediaType
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
@@ -23,12 +24,12 @@ class KrogerAuthService(
     private val krogerConfigRepository: KrogerConfigRepository,
     private val krogerTokenRepository: KrogerTokenRepository,
     private val pkceStateRepository: OAuthPkceStateRepository,
-    private val restClient: RestClient
+    private val restClient: RestClient,
+    @Value("\${kroger.redirect-uri}") private val redirectUri: String
 ) {
     companion object {
         private const val TOKEN_URL = "https://api.kroger.com/v1/connect/oauth2/token"
         private const val AUTH_BASE_URL = "https://api.kroger.com/v1/connect/oauth2/authorize"
-        private const val REDIRECT_URI = "http://localhost:8080/api/kroger/auth/callback"
         private const val CART_SCOPE = "cart.basic:write profile.compact"
         private const val CLIENT_SCOPE = "product.compact"
     }
@@ -124,7 +125,7 @@ class KrogerAuthService(
 
         val encodedScope = CART_SCOPE.replace(" ", "%20")
         val authUrl = "$AUTH_BASE_URL?client_id=${config.clientId}" +
-            "&redirect_uri=$REDIRECT_URI" +
+            "&redirect_uri=$redirectUri" +
             "&response_type=code" +
             "&scope=$encodedScope" +
             "&state=$state" +
@@ -151,7 +152,7 @@ class KrogerAuthService(
             .uri(TOKEN_URL)
             .header("Authorization", "Basic $credentials")
             .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-            .body("grant_type=authorization_code&code=$code&redirect_uri=$REDIRECT_URI&code_verifier=${pkceState.codeVerifier}")
+            .body("grant_type=authorization_code&code=$code&redirect_uri=$redirectUri&code_verifier=${pkceState.codeVerifier}")
             .retrieve()
             .body(KrogerTokenApiResponse::class.java)
             ?: throw IllegalStateException("Empty response from Kroger authorization code exchange")

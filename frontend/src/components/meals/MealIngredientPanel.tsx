@@ -44,6 +44,24 @@ export function MealIngredientPanel({ mealId }: Props) {
         </p>
       </div>
       <Separator className="mb-3" />
+      <div className="flex gap-2 mb-3">
+        <Input
+          placeholder='Add ingredient, e.g. "2 onions"'
+          value={rawInput}
+          onChange={(e) => setRawInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleAddIngredient()}
+        />
+        <Button
+          onClick={handleAddIngredient}
+          disabled={adding || !rawInput.trim()}
+          className="bg-green-600 hover:bg-green-700 text-white"
+        >
+          {adding
+            ? <Loader2 className="h-4 w-4 animate-spin" />
+            : <PlusCircle className="h-4 w-4" />}
+        </Button>
+      </div>
+      <Separator className="mb-3" />
       <div className="flex-1 overflow-y-auto space-y-0.5 pr-1">
         {isLoading ? (
           <div className="space-y-2">
@@ -51,27 +69,13 @@ export function MealIngredientPanel({ mealId }: Props) {
           </div>
         ) : meal?.ingredients.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-12">
-            No ingredients yet. Add one below.
+            No ingredients yet.
           </p>
         ) : (
           meal?.ingredients.map((ing) => (
             <IngredientRow key={ing.id} mealId={mealId} ingredient={ing} />
           ))
         )}
-      </div>
-      <Separator className="my-3" />
-      <div className="flex gap-2">
-        <Input
-          placeholder='Add ingredient, e.g. "2 onions"'
-          value={rawInput}
-          onChange={(e) => setRawInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAddIngredient()}
-        />
-        <Button onClick={handleAddIngredient} disabled={adding || !rawInput.trim()}>
-          {adding
-            ? <Loader2 className="h-4 w-4 animate-spin" />
-            : <PlusCircle className="h-4 w-4" />}
-        </Button>
       </div>
     </div>
   );

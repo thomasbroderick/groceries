@@ -35,14 +35,14 @@ dependencies {
 
 kotlin {
     compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_24
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
         freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
     }
 }
 
 tasks.withType<JavaCompile> {
-    sourceCompatibility = "24"
-    targetCompatibility = "24"
+    sourceCompatibility = "21"
+    targetCompatibility = "21"
 }
 
 allOpen {

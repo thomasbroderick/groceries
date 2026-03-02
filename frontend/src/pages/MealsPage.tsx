@@ -48,7 +48,7 @@ export default function MealsPage() {
       <div className="w-72 shrink-0 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Meals</h1>
-          <Button size="sm" onClick={() => setNewMealOpen(true)}>
+          <Button size="sm" onClick={() => setNewMealOpen(true)} className="bg-green-600 hover:bg-green-700 text-white">
             <PlusCircle className="h-4 w-4 mr-1" />
             New
           </Button>
