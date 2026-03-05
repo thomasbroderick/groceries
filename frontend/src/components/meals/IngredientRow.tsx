@@ -122,46 +122,92 @@ export function IngredientRow({ mealId, ingredient }: Props) {
   );
 
   return (
-    <div className="flex items-center gap-2 py-1.5 group">
-      {qtyArea}
-      <span className="flex-1 text-sm">{ingredient.name}</span>
+    <div className="py-1.5 group">
+      {/* Main row: qty + name + action buttons */}
+      <div className="flex items-center gap-2">
+        {qtyArea}
+        <span className="flex-1 text-sm min-w-0">{ingredient.name}</span>
 
-      {ingredient.krogerProductName ? (
-        <>
-          <span className="text-xs text-muted-foreground truncate max-w-[140px]">
-            {ingredient.krogerProductName}
-          </span>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditing(true)} title="Edit">
-              <Pencil className="h-3 w-3" />
-            </Button>
-            <ProductSearchPopover initialQuery={ingredient.name} onSelect={handleLinkProduct}>
-              <Button size="icon" variant="ghost" className="h-6 w-6" title="Change product">
-                <Link className="h-3 w-3" />
+        {ingredient.krogerProductName ? (
+          <>
+            {/* Desktop: product name inline + hover-reveal buttons */}
+            <span className="hidden md:inline text-xs text-muted-foreground truncate max-w-[140px]">
+              {ingredient.krogerProductName}
+            </span>
+            <div className="hidden md:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditing(true)} title="Edit">
+                <Pencil className="h-3 w-3" />
               </Button>
-            </ProductSearchPopover>
-            <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" onClick={handleDelete} title="Delete">
-              <Trash2 className="h-3 w-3" />
-            </Button>
-          </div>
-        </>
+              <ProductSearchPopover initialQuery={ingredient.name} onSelect={handleLinkProduct}>
+                <Button size="icon" variant="ghost" className="h-6 w-6" title="Change product">
+                  <Link className="h-3 w-3" />
+                </Button>
+              </ProductSearchPopover>
+              <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" onClick={handleDelete} title="Delete">
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+            {/* Mobile: always-visible buttons */}
+            <div className="flex md:hidden items-center gap-0.5">
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditing(true)} title="Edit">
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <ProductSearchPopover initialQuery={ingredient.name} onSelect={handleLinkProduct}>
+                <Button size="icon" variant="ghost" className="h-8 w-8" title="Change product">
+                  <Link className="h-3.5 w-3.5" />
+                </Button>
+              </ProductSearchPopover>
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={handleDelete} title="Delete">
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Desktop: link button + hover-reveal edit/delete */}
+            <div className="hidden md:flex items-center gap-1">
+              <ProductSearchPopover initialQuery={ingredient.name} onSelect={handleLinkProduct}>
+                <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 shrink-0">
+                  <Link className="h-3 w-3" />
+                  Link product
+                </Button>
+              </ProductSearchPopover>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditing(true)} title="Edit">
+                  <Pencil className="h-3 w-3" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" onClick={handleDelete} title="Delete">
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+            {/* Mobile: edit + delete always visible */}
+            <div className="flex md:hidden items-center gap-0.5">
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditing(true)} title="Edit">
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={handleDelete} title="Delete">
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Mobile second line: product name or Link product button */}
+      {ingredient.krogerProductName ? (
+        <div className="md:hidden ml-10 mt-0.5">
+          <span className="text-xs text-muted-foreground">{ingredient.krogerProductName}</span>
+        </div>
       ) : (
-        <>
+        <div className="md:hidden ml-10 mt-1">
           <ProductSearchPopover initialQuery={ingredient.name} onSelect={handleLinkProduct}>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 shrink-0">
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5">
               <Link className="h-3 w-3" />
               Link product
             </Button>
           </ProductSearchPopover>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setEditing(true)} title="Edit">
-              <Pencil className="h-3 w-3" />
-            </Button>
-            <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" onClick={handleDelete} title="Delete">
-              <Trash2 className="h-3 w-3" />
-            </Button>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );

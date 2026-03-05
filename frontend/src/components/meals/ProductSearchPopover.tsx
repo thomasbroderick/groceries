@@ -66,7 +66,7 @@ export function ProductSearchPopover({ initialQuery = "", onSelect, children }: 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-80 p-3" align="start">
+      <PopoverContent className="w-80 max-w-[calc(100vw-2rem)] p-3" align="start">
         <div className="space-y-2">
           <div className="flex gap-2">
             <Input
