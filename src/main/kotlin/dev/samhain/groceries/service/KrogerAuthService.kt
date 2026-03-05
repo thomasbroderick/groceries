@@ -4,6 +4,7 @@ import dev.samhain.groceries.dto.AuthUrlResponse
 import dev.samhain.groceries.entity.GrantType
 import dev.samhain.groceries.entity.KrogerToken
 import dev.samhain.groceries.entity.OAuthPkceState
+import dev.samhain.groceries.repository.AppUserRepository
 import dev.samhain.groceries.repository.KrogerConfigRepository
 import dev.samhain.groceries.repository.KrogerTokenRepository
 import dev.samhain.groceries.repository.OAuthPkceStateRepository
@@ -24,6 +25,7 @@ class KrogerAuthService(
     private val krogerConfigRepository: KrogerConfigRepository,
     private val krogerTokenRepository: KrogerTokenRepository,
     private val pkceStateRepository: OAuthPkceStateRepository,
+    private val userRepository: AppUserRepository,
     private val restClient: RestClient,
     @Value("\${kroger.redirect-uri}") private val redirectUri: String
 ) {
@@ -34,33 +36,33 @@ class KrogerAuthService(
         private const val CLIENT_SCOPE = "product.compact"
     }
 
-    fun getValidClientToken(): String {
-        val config = krogerConfigRepository.findById(1L)
+    fun getValidClientToken(userId: Long): String {
+        val config = krogerConfigRepository.findByUserId(userId)
             .orElseThrow { IllegalStateException("Kroger not configured") }
 
-        val existing = krogerTokenRepository.findByGrantType(GrantType.CLIENT).orElse(null)
+        val existing = krogerTokenRepository.findByUserIdAndGrantType(userId, GrantType.CLIENT).orElse(null)
         if (existing != null && existing.expiresAt.isAfter(Instant.now().plusSeconds(60))) {
             return existing.accessToken
         }
 
-        return fetchClientToken(config.clientId, config.clientSecret)
+        return fetchClientToken(config.clientId, config.clientSecret, userId)
     }
 
-    fun getValidUserToken(): String {
-        val token = krogerTokenRepository.findByGrantType(GrantType.USER)
+    fun getValidUserToken(userId: Long): String {
+        val token = krogerTokenRepository.findByUserIdAndGrantType(userId, GrantType.USER)
             .orElseThrow { IllegalStateException("User not authenticated. Visit /api/kroger/auth/url") }
 
         if (token.expiresAt.isAfter(Instant.now().plusSeconds(60))) return token.accessToken
 
         val refreshToken = token.refreshToken
             ?: throw IllegalStateException("User token expired and no refresh token available")
-        val config = krogerConfigRepository.findById(1L)
+        val config = krogerConfigRepository.findByUserId(userId)
             .orElseThrow { IllegalStateException("Kroger not configured") }
 
         return refreshUserToken(config.clientId, config.clientSecret, refreshToken, token)
     }
 
-    private fun fetchClientToken(clientId: String, clientSecret: String): String {
+    private fun fetchClientToken(clientId: String, clientSecret: String, userId: Long): String {
         val credentials = Base64.getEncoder().encodeToString("$clientId:$clientSecret".toByteArray())
         val response = restClient.post()
             .uri(TOKEN_URL)
@@ -72,11 +74,16 @@ class KrogerAuthService(
             ?: throw IllegalStateException("Empty response from Kroger token endpoint")
 
         val expiresAt = Instant.now().plusSeconds(response.expires_in.toLong())
-        val existing = krogerTokenRepository.findByGrantType(GrantType.CLIENT).orElse(null)
+        val existing = krogerTokenRepository.findByUserIdAndGrantType(userId, GrantType.CLIENT).orElse(null)
         val token = existing?.apply {
             accessToken = response.access_token
             this.expiresAt = expiresAt
-        } ?: KrogerToken(accessToken = response.access_token, expiresAt = expiresAt, grantType = GrantType.CLIENT)
+        } ?: KrogerToken(
+            accessToken = response.access_token,
+            expiresAt = expiresAt,
+            grantType = GrantType.CLIENT,
+            user = userRepository.getReferenceById(userId)
+        )
         krogerTokenRepository.save(token)
         return response.access_token
     }
@@ -104,8 +111,8 @@ class KrogerAuthService(
         return response.access_token
     }
 
-    fun generateAuthUrl(): AuthUrlResponse {
-        val config = krogerConfigRepository.findById(1L)
+    fun generateAuthUrl(userId: Long): AuthUrlResponse {
+        val config = krogerConfigRepository.findByUserId(userId)
             .orElseThrow { IllegalStateException("Kroger not configured") }
 
         val secureRandom = SecureRandom()
@@ -121,7 +128,12 @@ class KrogerAuthService(
         secureRandom.nextBytes(stateBytes)
         val state = Base64.getUrlEncoder().withoutPadding().encodeToString(stateBytes)
 
-        pkceStateRepository.save(OAuthPkceState(state = state, codeVerifier = codeVerifier, expiresAt = Instant.now().plusSeconds(600)))
+        pkceStateRepository.save(OAuthPkceState(
+            state = state,
+            codeVerifier = codeVerifier,
+            expiresAt = Instant.now().plusSeconds(600),
+            userId = userId
+        ))
 
         val encodedScope = CART_SCOPE.replace(" ", "%20")
         val authUrl = "$AUTH_BASE_URL?client_id=${config.clientId}" +
@@ -144,7 +156,8 @@ class KrogerAuthService(
             throw IllegalArgumentException("OAuth state expired")
         }
 
-        val config = krogerConfigRepository.findById(1L)
+        val userId = pkceState.userId
+        val config = krogerConfigRepository.findByUserId(userId)
             .orElseThrow { IllegalStateException("Kroger not configured") }
         val credentials = Base64.getEncoder().encodeToString("${config.clientId}:${config.clientSecret}".toByteArray())
 
@@ -160,7 +173,7 @@ class KrogerAuthService(
         pkceStateRepository.deleteById(state)
 
         val expiresAt = Instant.now().plusSeconds(response.expires_in.toLong())
-        val existing = krogerTokenRepository.findByGrantType(GrantType.USER).orElse(null)
+        val existing = krogerTokenRepository.findByUserIdAndGrantType(userId, GrantType.USER).orElse(null)
         val token = existing?.apply {
             accessToken = response.access_token
             refreshToken = response.refresh_token
@@ -169,7 +182,8 @@ class KrogerAuthService(
             accessToken = response.access_token,
             refreshToken = response.refresh_token,
             expiresAt = expiresAt,
-            grantType = GrantType.USER
+            grantType = GrantType.USER,
+            user = userRepository.getReferenceById(userId)
         )
         krogerTokenRepository.save(token)
         return "Authentication successful"

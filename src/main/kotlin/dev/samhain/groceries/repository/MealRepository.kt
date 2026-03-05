@@ -6,11 +6,17 @@ import org.springframework.data.jpa.repository.JpaRepository
 import java.util.Optional
 
 interface MealRepository : JpaRepository<Meal, Long> {
-    fun findByName(name: String): Optional<Meal>
+    @EntityGraph(attributePaths = ["ingredients"])
+    fun findAllByUserId(userId: Long): List<Meal>
 
+    fun findByIdAndUserId(id: Long, userId: Long): Optional<Meal>
+
+    @EntityGraph(attributePaths = ["ingredients"])
+    fun findWithIngredientsByIdAndUserId(id: Long, userId: Long): Optional<Meal>
+
+    fun existsByIdAndUserId(id: Long, userId: Long): Boolean
+
+    // Kept for backward compatibility
     @EntityGraph(attributePaths = ["ingredients"])
     fun findWithIngredientsById(id: Long): Optional<Meal>
-
-    @EntityGraph(attributePaths = ["ingredients"])
-    override fun findAll(): List<Meal>
 }

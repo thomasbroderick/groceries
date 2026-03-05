@@ -13,5 +13,8 @@ class OAuthPkceState(
     val codeVerifier: String = "",
 
     @Column(nullable = false)
-    val expiresAt: Instant = Instant.now()
+    val expiresAt: Instant = Instant.now(),
+
+    @Column(nullable = false)
+    val userId: Long = 0
 )

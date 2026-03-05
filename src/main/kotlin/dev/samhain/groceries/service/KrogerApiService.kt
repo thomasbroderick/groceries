@@ -14,8 +14,8 @@ class KrogerApiService(
         private const val BASE_URL = "https://api.kroger.com/v1"
     }
 
-    fun searchProducts(request: ProductSearchRequest): List<KrogerProductResponse> {
-        val token = krogerAuthService.getValidClientToken()
+    fun searchProducts(request: ProductSearchRequest, userId: Long): List<KrogerProductResponse> {
+        val token = krogerAuthService.getValidClientToken(userId)
         val locationId = request.locationId
 
         val response = if (locationId != null) {
@@ -46,8 +46,8 @@ class KrogerApiService(
         } ?: emptyList()
     }
 
-    fun searchLocations(request: LocationSearchRequest): List<KrogerLocationResponse> {
-        val token = krogerAuthService.getValidClientToken()
+    fun searchLocations(request: LocationSearchRequest, userId: Long): List<KrogerLocationResponse> {
+        val token = krogerAuthService.getValidClientToken(userId)
         val response = restClient.get()
             .uri("$BASE_URL/locations?filter.zipCode.near={zip}&filter.limit=10", request.zipCode)
             .header("Authorization", "Bearer $token")
@@ -66,8 +66,8 @@ class KrogerApiService(
         } ?: emptyList()
     }
 
-    fun addToCart(request: AddToCartRequest): String {
-        val token = krogerAuthService.getValidUserToken()
+    fun addToCart(request: AddToCartRequest, userId: Long): String {
+        val token = krogerAuthService.getValidUserToken(userId)
         val body = mapOf("items" to request.items.map { mapOf("upc" to it.upc, "quantity" to it.quantity) })
 
         restClient.put()

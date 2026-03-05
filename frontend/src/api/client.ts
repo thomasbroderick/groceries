@@ -10,17 +10,41 @@ export class ApiError extends Error {
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+export function setToken(token: string) {
+  localStorage.setItem("auth_token", token);
+}
+
+export function clearToken() {
+  localStorage.removeItem("auth_token");
+}
+
+function getToken(): string | null {
+  return localStorage.getItem("auth_token");
+}
+
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (options?.headers) {
+    Object.assign(headers, options.headers);
+  }
+
   const response = await fetch(API_BASE + path, {
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
     ...options,
+    headers,
   });
+
+  if (response.status === 401) {
+    clearToken();
+    if (!window.location.pathname.endsWith("/login")) {
+      window.location.href = import.meta.env.BASE_URL + "login";
+    }
+    throw new ApiError(401, "Unauthorized");
+  }
 
   if (!response.ok) {
     const text = await response.text().catch(() => response.statusText);

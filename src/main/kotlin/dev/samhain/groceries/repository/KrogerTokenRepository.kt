@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository
 import java.util.Optional
 
 interface KrogerTokenRepository : JpaRepository<KrogerToken, Long> {
-    fun findByGrantType(grantType: GrantType): Optional<KrogerToken>
+    fun findByUserIdAndGrantType(userId: Long, grantType: GrantType): Optional<KrogerToken>
 }

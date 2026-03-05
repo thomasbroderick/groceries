@@ -3,6 +3,7 @@ package dev.samhain.groceries.service
 import dev.samhain.groceries.dto.*
 import dev.samhain.groceries.entity.Ingredient
 import dev.samhain.groceries.entity.Meal
+import dev.samhain.groceries.repository.AppUserRepository
 import dev.samhain.groceries.repository.IngredientRepository
 import dev.samhain.groceries.repository.MealRepository
 import jakarta.persistence.EntityNotFoundException
@@ -13,58 +14,61 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class MealService(
     private val mealRepository: MealRepository,
-    private val ingredientRepository: IngredientRepository
+    private val ingredientRepository: IngredientRepository,
+    private val userRepository: AppUserRepository
 ) {
 
     @Transactional(readOnly = true)
-    fun getAllMeals(): List<MealSummaryResponse> =
-        mealRepository.findAll().map { MealSummaryResponse(it.id, it.name, it.ingredients.size) }
+    fun getAllMeals(userId: Long): List<MealSummaryResponse> =
+        mealRepository.findAllByUserId(userId).map { MealSummaryResponse(it.id, it.name, it.ingredients.size) }
 
-    fun createMeal(request: CreateMealRequest): MealDetailResponse {
-        val meal = mealRepository.save(Meal(name = request.name))
+    fun createMeal(request: CreateMealRequest, userId: Long): MealDetailResponse {
+        val meal = mealRepository.save(Meal(name = request.name, user = userRepository.getReferenceById(userId)))
         return MealDetailResponse(meal.id, meal.name, emptyList())
     }
 
     @Transactional(readOnly = true)
-    fun getMeal(id: Long): MealDetailResponse =
-        mealRepository.findWithIngredientsById(id)
+    fun getMeal(id: Long, userId: Long): MealDetailResponse =
+        mealRepository.findWithIngredientsByIdAndUserId(id, userId)
             .orElseThrow { EntityNotFoundException("Meal not found: $id") }
             .toDetailResponse()
 
-    fun updateMeal(id: Long, request: UpdateMealRequest): MealDetailResponse {
-        val meal = mealRepository.findWithIngredientsById(id)
+    fun updateMeal(id: Long, request: UpdateMealRequest, userId: Long): MealDetailResponse {
+        val meal = mealRepository.findWithIngredientsByIdAndUserId(id, userId)
             .orElseThrow { EntityNotFoundException("Meal not found: $id") }
         meal.name = request.name
         return mealRepository.save(meal).toDetailResponse()
     }
 
-    fun deleteMeal(id: Long) {
-        if (!mealRepository.existsById(id)) throw EntityNotFoundException("Meal not found: $id")
+    fun deleteMeal(id: Long, userId: Long) {
+        if (!mealRepository.existsByIdAndUserId(id, userId)) throw EntityNotFoundException("Meal not found: $id")
         mealRepository.deleteById(id)
     }
 
     @Transactional(readOnly = true)
-    fun getIngredients(mealId: Long): List<IngredientResponse> {
-        if (!mealRepository.existsById(mealId)) throw EntityNotFoundException("Meal not found: $mealId")
+    fun getIngredients(mealId: Long, userId: Long): List<IngredientResponse> {
+        if (!mealRepository.existsByIdAndUserId(mealId, userId)) throw EntityNotFoundException("Meal not found: $mealId")
         return ingredientRepository.findByMealId(mealId).map { it.toResponse() }
     }
 
     @Transactional(readOnly = true)
-    fun getIngredient(mealId: Long, ingredientId: Long): IngredientResponse {
+    fun getIngredient(mealId: Long, ingredientId: Long, userId: Long): IngredientResponse {
+        if (!mealRepository.existsByIdAndUserId(mealId, userId)) throw EntityNotFoundException("Meal not found: $mealId")
         val ingredient = ingredientRepository.findById(ingredientId)
             .orElseThrow { EntityNotFoundException("Ingredient not found: $ingredientId") }
         if (ingredient.meal?.id != mealId) throw EntityNotFoundException("Ingredient $ingredientId not in meal $mealId")
         return ingredient.toResponse()
     }
 
-    fun addIngredient(mealId: Long, request: AddIngredientRequest): IngredientResponse {
-        val meal = mealRepository.findById(mealId)
+    fun addIngredient(mealId: Long, request: AddIngredientRequest, userId: Long): IngredientResponse {
+        val meal = mealRepository.findByIdAndUserId(mealId, userId)
             .orElseThrow { EntityNotFoundException("Meal not found: $mealId") }
         val (name, quantity) = parseIngredient(request.raw)
         return ingredientRepository.save(Ingredient(meal = meal, name = name, quantity = quantity)).toResponse()
     }
 
-    fun updateIngredient(mealId: Long, ingredientId: Long, request: UpdateIngredientRequest): IngredientResponse {
+    fun updateIngredient(mealId: Long, ingredientId: Long, request: UpdateIngredientRequest, userId: Long): IngredientResponse {
+        if (!mealRepository.existsByIdAndUserId(mealId, userId)) throw EntityNotFoundException("Meal not found: $mealId")
         val ingredient = ingredientRepository.findById(ingredientId)
             .orElseThrow { EntityNotFoundException("Ingredient not found: $ingredientId") }
         if (ingredient.meal?.id != mealId) throw EntityNotFoundException("Ingredient $ingredientId not in meal $mealId")
@@ -75,7 +79,8 @@ class MealService(
         return ingredientRepository.save(ingredient).toResponse()
     }
 
-    fun deleteIngredient(mealId: Long, ingredientId: Long) {
+    fun deleteIngredient(mealId: Long, ingredientId: Long, userId: Long) {
+        if (!mealRepository.existsByIdAndUserId(mealId, userId)) throw EntityNotFoundException("Meal not found: $mealId")
         val ingredient = ingredientRepository.findById(ingredientId)
             .orElseThrow { EntityNotFoundException("Ingredient not found: $ingredientId") }
         if (ingredient.meal?.id != mealId) throw EntityNotFoundException("Ingredient $ingredientId not in meal $mealId")
@@ -83,7 +88,7 @@ class MealService(
     }
 
     @Transactional(readOnly = true)
-    fun consolidateIngredients(mealIds: List<Long>): List<ConsolidatedIngredientResponse> {
+    fun consolidateIngredients(mealIds: List<Long>, userId: Long): List<ConsolidatedIngredientResponse> {
         data class Acc(
             val quantities: MutableList<String?> = mutableListOf(),
             var krogerProductId: String? = null,
@@ -92,6 +97,7 @@ class MealService(
 
         val grouped = mutableMapOf<String, Acc>()
         for (mealId in mealIds) {
+            if (!mealRepository.existsByIdAndUserId(mealId, userId)) throw EntityNotFoundException("Meal not found: $mealId")
             for (ingredient in ingredientRepository.findByMealId(mealId)) {
                 val key = ingredient.name.trim().lowercase()
                 val acc = grouped.getOrPut(key) { Acc() }
@@ -119,9 +125,10 @@ class MealService(
         }
     }
 
-    fun linkProduct(request: LinkProductRequest) {
+    fun linkProduct(request: LinkProductRequest, userId: Long) {
         val nameKey = request.name.trim().lowercase()
         for (mealId in request.mealIds) {
+            if (!mealRepository.existsByIdAndUserId(mealId, userId)) throw EntityNotFoundException("Meal not found: $mealId")
             ingredientRepository.findByMealId(mealId)
                 .filter { it.name.trim().lowercase() == nameKey }
                 .forEach {

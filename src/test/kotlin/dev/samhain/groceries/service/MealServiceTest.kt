@@ -1,8 +1,10 @@
 package dev.samhain.groceries.service
 
 import dev.samhain.groceries.dto.CreateMealRequest
+import dev.samhain.groceries.entity.AppUser
 import dev.samhain.groceries.entity.Ingredient
 import dev.samhain.groceries.entity.Meal
+import dev.samhain.groceries.repository.AppUserRepository
 import dev.samhain.groceries.repository.IngredientRepository
 import dev.samhain.groceries.repository.MealRepository
 import jakarta.persistence.EntityNotFoundException
@@ -23,7 +25,10 @@ class MealServiceTest {
 
     @Mock lateinit var mealRepository: MealRepository
     @Mock lateinit var ingredientRepository: IngredientRepository
+    @Mock lateinit var userRepository: AppUserRepository
     @InjectMocks lateinit var mealService: MealService
+
+    private val userId = 1L
 
     // -------------------------------------------------------------------------
     // parseIngredient
@@ -91,37 +96,42 @@ class MealServiceTest {
 
     @Test
     fun `consolidateIngredients sums integer quantities for same ingredient across meals`() {
+        whenever(mealRepository.existsByIdAndUserId(1L, userId)).thenReturn(true)
+        whenever(mealRepository.existsByIdAndUserId(2L, userId)).thenReturn(true)
         whenever(ingredientRepository.findByMealId(1L)).thenReturn(listOf(ingredient(1L, 1L, "onions", "2")))
         whenever(ingredientRepository.findByMealId(2L)).thenReturn(listOf(ingredient(2L, 2L, "onions", "3")))
 
-        val result = mealService.consolidateIngredients(listOf(1L, 2L))
+        val result = mealService.consolidateIngredients(listOf(1L, 2L), userId)
 
         assertEquals(1, result.size)
         assertEquals("onions", result[0].name)
-        assertEquals("5", result[0].quantity)
+        assertEquals("5", result[0].consolidatedQuantity)
     }
 
     @Test
     fun `consolidateIngredients joins mixed quantities with plus`() {
+        whenever(mealRepository.existsByIdAndUserId(1L, userId)).thenReturn(true)
+        whenever(mealRepository.existsByIdAndUserId(2L, userId)).thenReturn(true)
         whenever(ingredientRepository.findByMealId(1L)).thenReturn(listOf(ingredient(1L, 1L, "flour", "1 cup")))
         whenever(ingredientRepository.findByMealId(2L)).thenReturn(listOf(ingredient(2L, 2L, "flour", "2 cups")))
 
-        val result = mealService.consolidateIngredients(listOf(1L, 2L))
+        val result = mealService.consolidateIngredients(listOf(1L, 2L), userId)
 
-        assertEquals("1 cup + 2 cups", result[0].quantity)
+        assertEquals("1 cup + 2 cups", result[0].consolidatedQuantity)
     }
 
     @Test
     fun `consolidateIngredients groups by lowercase trimmed name`() {
+        whenever(mealRepository.existsByIdAndUserId(1L, userId)).thenReturn(true)
         whenever(ingredientRepository.findByMealId(1L)).thenReturn(listOf(
             ingredient(1L, 1L, "Onions", "2"),
             ingredient(2L, 1L, " onions ", "3")
         ))
 
-        val result = mealService.consolidateIngredients(listOf(1L))
+        val result = mealService.consolidateIngredients(listOf(1L), userId)
 
         assertEquals(1, result.size)
-        assertEquals("5", result[0].quantity)
+        assertEquals("5", result[0].consolidatedQuantity)
     }
 
     @Test
@@ -132,10 +142,12 @@ class MealServiceTest {
         val second = ingredient(2L, 2L, "beef", "2 lb").apply {
             krogerProductId = "upc-new"; krogerProductName = "New Beef"
         }
+        whenever(mealRepository.existsByIdAndUserId(1L, userId)).thenReturn(true)
+        whenever(mealRepository.existsByIdAndUserId(2L, userId)).thenReturn(true)
         whenever(ingredientRepository.findByMealId(1L)).thenReturn(listOf(first))
         whenever(ingredientRepository.findByMealId(2L)).thenReturn(listOf(second))
 
-        val result = mealService.consolidateIngredients(listOf(1L, 2L))
+        val result = mealService.consolidateIngredients(listOf(1L, 2L), userId)
 
         assertEquals("upc-new", result[0].krogerProductId)
         assertEquals("New Beef", result[0].krogerProductName)
@@ -143,22 +155,24 @@ class MealServiceTest {
 
     @Test
     fun `consolidateIngredients returns null quantity when all quantities are null`() {
+        whenever(mealRepository.existsByIdAndUserId(1L, userId)).thenReturn(true)
         whenever(ingredientRepository.findByMealId(1L)).thenReturn(listOf(ingredient(1L, 1L, "salt", null)))
 
-        val result = mealService.consolidateIngredients(listOf(1L))
+        val result = mealService.consolidateIngredients(listOf(1L), userId)
 
         assertEquals(1, result.size)
-        assertNull(result[0].quantity)
+        assertNull(result[0].consolidatedQuantity)
     }
 
     @Test
     fun `consolidateIngredients keeps distinct ingredients separate`() {
+        whenever(mealRepository.existsByIdAndUserId(1L, userId)).thenReturn(true)
         whenever(ingredientRepository.findByMealId(1L)).thenReturn(listOf(
             ingredient(1L, 1L, "garlic", "3"),
             ingredient(2L, 1L, "onions", "1")
         ))
 
-        val result = mealService.consolidateIngredients(listOf(1L))
+        val result = mealService.consolidateIngredients(listOf(1L), userId)
 
         assertEquals(2, result.size)
     }
@@ -169,31 +183,32 @@ class MealServiceTest {
 
     @Test
     fun `getMeal throws EntityNotFoundException when meal not found`() {
-        whenever(mealRepository.findWithIngredientsById(99L)).thenReturn(Optional.empty())
+        whenever(mealRepository.findWithIngredientsByIdAndUserId(99L, userId)).thenReturn(Optional.empty())
 
-        assertFailsWith<EntityNotFoundException> { mealService.getMeal(99L) }
+        assertFailsWith<EntityNotFoundException> { mealService.getMeal(99L, userId) }
     }
 
     @Test
     fun `deleteMeal throws EntityNotFoundException when meal not found`() {
-        whenever(mealRepository.existsById(99L)).thenReturn(false)
+        whenever(mealRepository.existsByIdAndUserId(99L, userId)).thenReturn(false)
 
-        assertFailsWith<EntityNotFoundException> { mealService.deleteMeal(99L) }
+        assertFailsWith<EntityNotFoundException> { mealService.deleteMeal(99L, userId) }
     }
 
     @Test
     fun `getIngredients throws EntityNotFoundException when meal not found`() {
-        whenever(mealRepository.existsById(99L)).thenReturn(false)
+        whenever(mealRepository.existsByIdAndUserId(99L, userId)).thenReturn(false)
 
-        assertFailsWith<EntityNotFoundException> { mealService.getIngredients(99L) }
+        assertFailsWith<EntityNotFoundException> { mealService.getIngredients(99L, userId) }
     }
 
     @Test
     fun `createMeal saves and returns detail response with empty ingredients`() {
         val saved = Meal(id = 1L, name = "Pasta")
+        whenever(userRepository.getReferenceById(userId)).thenReturn(AppUser(id = userId, username = "test"))
         whenever(mealRepository.save(any())).thenReturn(saved)
 
-        val result = mealService.createMeal(CreateMealRequest("Pasta"))
+        val result = mealService.createMeal(CreateMealRequest("Pasta"), userId)
 
         assertEquals(1L, result.id)
         assertEquals("Pasta", result.name)
@@ -204,10 +219,10 @@ class MealServiceTest {
     fun `addIngredient parses raw string and saves ingredient`() {
         val meal = Meal(id = 1L, name = "Pasta")
         val saved = Ingredient(id = 10L, meal = meal, name = "onions", quantity = "2")
-        whenever(mealRepository.findById(1L)).thenReturn(Optional.of(meal))
+        whenever(mealRepository.findByIdAndUserId(1L, userId)).thenReturn(Optional.of(meal))
         whenever(ingredientRepository.save(any())).thenReturn(saved)
 
-        val result = mealService.addIngredient(1L, dev.samhain.groceries.dto.AddIngredientRequest("2 onions"))
+        val result = mealService.addIngredient(1L, dev.samhain.groceries.dto.AddIngredientRequest("2 onions"), userId)
 
         assertEquals("onions", result.name)
         assertEquals("2", result.quantity)

@@ -4,12 +4,13 @@ import dev.samhain.groceries.entity.GrantType
 import dev.samhain.groceries.entity.KrogerConfig
 import dev.samhain.groceries.entity.KrogerToken
 import dev.samhain.groceries.entity.OAuthPkceState
+import dev.samhain.groceries.repository.AppUserRepository
 import dev.samhain.groceries.repository.KrogerConfigRepository
 import dev.samhain.groceries.repository.KrogerTokenRepository
 import dev.samhain.groceries.repository.OAuthPkceStateRepository
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.whenever
@@ -27,8 +28,24 @@ class KrogerAuthServiceTest {
     @Mock lateinit var krogerConfigRepository: KrogerConfigRepository
     @Mock lateinit var krogerTokenRepository: KrogerTokenRepository
     @Mock lateinit var pkceStateRepository: OAuthPkceStateRepository
+    @Mock lateinit var userRepository: AppUserRepository
     @Mock lateinit var restClient: RestClient
-    @InjectMocks lateinit var krogerAuthService: KrogerAuthService
+
+    lateinit var krogerAuthService: KrogerAuthService
+
+    private val userId = 1L
+
+    @BeforeEach
+    fun setUp() {
+        krogerAuthService = KrogerAuthService(
+            krogerConfigRepository,
+            krogerTokenRepository,
+            pkceStateRepository,
+            userRepository,
+            restClient,
+            "http://localhost:8080/api/kroger/auth/callback"
+        )
+    }
 
     // -------------------------------------------------------------------------
     // getValidClientToken
@@ -36,40 +53,34 @@ class KrogerAuthServiceTest {
 
     @Test
     fun `getValidClientToken returns cached token when not yet expired`() {
-        whenever(krogerConfigRepository.findById(1L)).thenReturn(
+        whenever(krogerConfigRepository.findByUserId(userId)).thenReturn(
             Optional.of(KrogerConfig(id = 1L, clientId = "cid", clientSecret = "csec"))
         )
         val valid = KrogerToken(id = 1L, accessToken = "cached-token",
             expiresAt = Instant.now().plusSeconds(300), grantType = GrantType.CLIENT)
-        whenever(krogerTokenRepository.findByGrantType(GrantType.CLIENT)).thenReturn(Optional.of(valid))
+        whenever(krogerTokenRepository.findByUserIdAndGrantType(userId, GrantType.CLIENT)).thenReturn(Optional.of(valid))
 
-        val result = krogerAuthService.getValidClientToken()
+        val result = krogerAuthService.getValidClientToken(userId)
 
         assertEquals("cached-token", result)
-        // RestClient is never touched — no stubbing needed, confirming no outbound call
     }
 
     @Test
     fun `getValidClientToken throws IllegalStateException when Kroger not configured`() {
-        whenever(krogerConfigRepository.findById(1L)).thenReturn(Optional.empty())
+        whenever(krogerConfigRepository.findByUserId(userId)).thenReturn(Optional.empty())
 
-        assertFailsWith<IllegalStateException> { krogerAuthService.getValidClientToken() }
+        assertFailsWith<IllegalStateException> { krogerAuthService.getValidClientToken(userId) }
     }
 
     @Test
     fun `getValidClientToken treats token expiring within 60s as expired`() {
-        // Token expires in 30s — within the 60s buffer, so a new fetch is attempted.
-        // We don't stub RestClient, so it will throw — that's fine; we just confirm
-        // the cached token path was NOT taken (no short-circuit return).
-        whenever(krogerConfigRepository.findById(1L)).thenReturn(
+        whenever(krogerConfigRepository.findByUserId(userId)).thenReturn(
             Optional.of(KrogerConfig(id = 1L, clientId = "cid", clientSecret = "csec"))
         )
         val almostExpired = KrogerToken(id = 1L, accessToken = "stale-token",
             expiresAt = Instant.now().plusSeconds(30), grantType = GrantType.CLIENT)
-        whenever(krogerTokenRepository.findByGrantType(GrantType.CLIENT)).thenReturn(Optional.of(almostExpired))
-        // No RestClient stub → calling restClient.post() returns a mock that will
-        // eventually NPE or throw, confirming we attempted a refresh.
-        assertFailsWith<Exception> { krogerAuthService.getValidClientToken() }
+        whenever(krogerTokenRepository.findByUserIdAndGrantType(userId, GrantType.CLIENT)).thenReturn(Optional.of(almostExpired))
+        assertFailsWith<Exception> { krogerAuthService.getValidClientToken(userId) }
     }
 
     // -------------------------------------------------------------------------
@@ -80,18 +91,18 @@ class KrogerAuthServiceTest {
     fun `getValidUserToken returns cached user token when not yet expired`() {
         val valid = KrogerToken(id = 2L, accessToken = "user-token",
             expiresAt = Instant.now().plusSeconds(600), grantType = GrantType.USER)
-        whenever(krogerTokenRepository.findByGrantType(GrantType.USER)).thenReturn(Optional.of(valid))
+        whenever(krogerTokenRepository.findByUserIdAndGrantType(userId, GrantType.USER)).thenReturn(Optional.of(valid))
 
-        val result = krogerAuthService.getValidUserToken()
+        val result = krogerAuthService.getValidUserToken(userId)
 
         assertEquals("user-token", result)
     }
 
     @Test
     fun `getValidUserToken throws when no user token stored`() {
-        whenever(krogerTokenRepository.findByGrantType(GrantType.USER)).thenReturn(Optional.empty())
+        whenever(krogerTokenRepository.findByUserIdAndGrantType(userId, GrantType.USER)).thenReturn(Optional.empty())
 
-        val ex = assertFailsWith<IllegalStateException> { krogerAuthService.getValidUserToken() }
+        val ex = assertFailsWith<IllegalStateException> { krogerAuthService.getValidUserToken(userId) }
         assertTrue(ex.message!!.contains("not authenticated"))
     }
 
@@ -99,9 +110,9 @@ class KrogerAuthServiceTest {
     fun `getValidUserToken throws when user token expired and no refresh token`() {
         val expired = KrogerToken(id = 2L, accessToken = "old-token", refreshToken = null,
             expiresAt = Instant.now().minusSeconds(60), grantType = GrantType.USER)
-        whenever(krogerTokenRepository.findByGrantType(GrantType.USER)).thenReturn(Optional.of(expired))
+        whenever(krogerTokenRepository.findByUserIdAndGrantType(userId, GrantType.USER)).thenReturn(Optional.of(expired))
 
-        val ex = assertFailsWith<IllegalStateException> { krogerAuthService.getValidUserToken() }
+        val ex = assertFailsWith<IllegalStateException> { krogerAuthService.getValidUserToken(userId) }
         assertTrue(ex.message!!.contains("refresh token"))
     }
 
@@ -111,19 +122,18 @@ class KrogerAuthServiceTest {
 
     @Test
     fun `generateAuthUrl throws when Kroger not configured`() {
-        whenever(krogerConfigRepository.findById(1L)).thenReturn(Optional.empty())
+        whenever(krogerConfigRepository.findByUserId(userId)).thenReturn(Optional.empty())
 
-        assertFailsWith<IllegalStateException> { krogerAuthService.generateAuthUrl() }
+        assertFailsWith<IllegalStateException> { krogerAuthService.generateAuthUrl(userId) }
     }
 
     @Test
     fun `generateAuthUrl returns URL containing required PKCE and OAuth parameters`() {
-        whenever(krogerConfigRepository.findById(1L)).thenReturn(
+        whenever(krogerConfigRepository.findByUserId(userId)).thenReturn(
             Optional.of(KrogerConfig(id = 1L, clientId = "my-client", clientSecret = "sec"))
         )
-        // pkceStateRepository.save() is called but its return value is unused — no stub needed
 
-        val response = krogerAuthService.generateAuthUrl()
+        val response = krogerAuthService.generateAuthUrl(userId)
 
         assertNotNull(response.state)
         assertTrue(response.authorizationUrl.contains("client_id=my-client"))
@@ -135,12 +145,12 @@ class KrogerAuthServiceTest {
 
     @Test
     fun `generateAuthUrl produces unique state on each call`() {
-        whenever(krogerConfigRepository.findById(1L)).thenReturn(
+        whenever(krogerConfigRepository.findByUserId(userId)).thenReturn(
             Optional.of(KrogerConfig(id = 1L, clientId = "cid", clientSecret = "sec"))
         )
 
-        val first = krogerAuthService.generateAuthUrl()
-        val second = krogerAuthService.generateAuthUrl()
+        val first = krogerAuthService.generateAuthUrl(userId)
+        val second = krogerAuthService.generateAuthUrl(userId)
 
         assertTrue(first.state != second.state, "Each call must produce a distinct state token")
     }
@@ -164,7 +174,8 @@ class KrogerAuthServiceTest {
         val expiredState = OAuthPkceState(
             state = "old-state",
             codeVerifier = "verifier",
-            expiresAt = Instant.now().minusSeconds(60)
+            expiresAt = Instant.now().minusSeconds(60),
+            userId = userId
         )
         whenever(pkceStateRepository.findById("old-state")).thenReturn(Optional.of(expiredState))
 
