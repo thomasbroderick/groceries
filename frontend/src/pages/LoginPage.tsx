@@ -43,7 +43,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-full max-w-sm space-y-6 p-6 border rounded-lg bg-card">
         <div>
-          <h1 className="text-2xl font-semibold">Groceries</h1>
+          <h1 className="text-2xl font-semibold">5 Minute Groceries</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {mode === "signin" ? "Sign in to your account" : "Create a new account"}
           </p>

@@ -1,6 +1,5 @@
 package dev.samhain.groceries.controller
 
-import dev.samhain.groceries.dto.KrogerConfigRequest
 import dev.samhain.groceries.dto.KrogerConfigResponse
 import dev.samhain.groceries.dto.LocationUpdateRequest
 import dev.samhain.groceries.entity.GrantType
@@ -35,26 +34,6 @@ class ConfigController(
         val config = krogerConfigRepository.findByUserId(userId).orElse(null)
             ?: return KrogerConfigResponse(clientId = "", locationId = null, locationName = null, hasToken = hasUserToken(userId))
         return config.toResponse(userId)
-    }
-
-    @PutMapping("/kroger")
-    fun upsertKrogerConfig(@RequestBody request: KrogerConfigRequest, auth: Authentication): KrogerConfigResponse {
-        val userId = auth.name.toLong()
-        val existing = krogerConfigRepository.findByUserId(userId).orElse(null)
-        val config = if (existing != null) {
-            existing.clientId = request.clientId
-            existing.clientSecret = request.clientSecret
-            existing.locationId = request.locationId
-            existing
-        } else {
-            KrogerConfig(
-                clientId = request.clientId,
-                clientSecret = request.clientSecret,
-                locationId = request.locationId,
-                user = userRepository.getReferenceById(userId)
-            )
-        }
-        return krogerConfigRepository.save(config).toResponse(userId)
     }
 
     @PatchMapping("/kroger/location")

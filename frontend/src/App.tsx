@@ -43,7 +43,7 @@ function AppLayout() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-14 items-center px-4 gap-2">
-          <span className="font-semibold mr-4">Groceries</span>
+          <span className="font-semibold mr-4">5 Minute Groceries</span>
           <nav className="flex items-center gap-1">
             <NavItem to="/" icon={UtensilsCrossed} label="Meals" />
             <NavItem to="/shop" icon={ShoppingCart} label="Shop" />

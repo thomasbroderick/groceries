@@ -4,7 +4,6 @@ import { useSearchParams } from "react-router-dom";
 import { CheckCircle2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CredentialsCard } from "@/components/settings/CredentialsCard";
 import { LocationCard } from "@/components/settings/LocationCard";
 import { AuthCard } from "@/components/settings/AuthCard";
 import { getKrogerConfig } from "@/api/config";
@@ -46,14 +45,11 @@ export default function SettingsPage() {
 
       {isLoading ? (
         <div className="space-y-4">
-          <Skeleton className="h-36 rounded-lg" />
-          <Skeleton className="h-48 rounded-lg" />
           <Skeleton className="h-48 rounded-lg" />
           <Skeleton className="h-36 rounded-lg" />
         </div>
       ) : (
         <div className="space-y-4">
-          <CredentialsCard config={config} onSaved={handleSaved} />
           <LocationCard config={config} onSaved={handleSaved} />
           <AuthCard config={config} />
         </div>

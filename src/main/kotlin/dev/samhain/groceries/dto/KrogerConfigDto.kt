@@ -7,12 +7,6 @@ data class KrogerConfigResponse(
     val hasToken: Boolean
 )
 
-data class KrogerConfigRequest(
-    val clientId: String,
-    val clientSecret: String,
-    val locationId: String? = null
-)
-
 data class LocationUpdateRequest(
     val locationId: String,
     val locationName: String?

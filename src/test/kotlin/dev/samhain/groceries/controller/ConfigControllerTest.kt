@@ -18,7 +18,8 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import java.time.Instant
@@ -76,38 +77,6 @@ class ConfigControllerTest {
         mockMvc.perform(get("/api/config/kroger").principal(mockAuth))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.clientId").value(""))
-            .andExpect(jsonPath("$.clientSecret").doesNotExist())
-    }
-
-    @Test
-    fun `PUT api config kroger inserts new config and returns without secret`() {
-        whenever(krogerConfigRepository.findByUserId(userId)).thenReturn(Optional.empty())
-        whenever(krogerConfigRepository.save(any())).thenReturn(
-            KrogerConfig(id = 1L, clientId = "new-id", clientSecret = "new-secret")
-        )
-
-        mockMvc.perform(put("/api/config/kroger").principal(mockAuth)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content("""{"clientId":"new-id","clientSecret":"new-secret"}"""))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.clientId").value("new-id"))
-            .andExpect(jsonPath("$.clientSecret").doesNotExist())
-    }
-
-    @Test
-    fun `PUT api config kroger updates existing config and returns locationId`() {
-        val existing = KrogerConfig(id = 1L, clientId = "old-id", clientSecret = "old-secret")
-        whenever(krogerConfigRepository.findByUserId(userId)).thenReturn(Optional.of(existing))
-        whenever(krogerConfigRepository.save(any())).thenReturn(
-            KrogerConfig(id = 1L, clientId = "updated-id", clientSecret = "updated-secret", locationId = "loc-123")
-        )
-
-        mockMvc.perform(put("/api/config/kroger").principal(mockAuth)
-            .contentType(MediaType.APPLICATION_JSON)
-            .content("""{"clientId":"updated-id","clientSecret":"updated-secret","locationId":"loc-123"}"""))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.clientId").value("updated-id"))
-            .andExpect(jsonPath("$.locationId").value("loc-123"))
             .andExpect(jsonPath("$.clientSecret").doesNotExist())
     }
 
