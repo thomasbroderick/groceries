@@ -32,10 +32,19 @@ export function ConsolidatedList({ items, mealIds, hasKrogerAuth, onLinked }: Pr
   const exclude = (name: string) => setExcludedNames((prev) => new Set([...prev, name]));
   const restore = (name: string) => setExcludedNames((prev) => { const next = new Set(prev); next.delete(name); return next; });
 
-  const activeItems = items.filter((i) => !excludedNames.has(i.name));
-  const excludedItems = items.filter((i) => excludedNames.has(i.name));
-  const linkedCount = activeItems.filter((i) => i.krogerProductId).length;
-  const unlinkedCount = activeItems.filter((i) => !i.krogerProductId).length;
+  const activeItems: ConsolidatedIngredientDto[] = [];
+  const excludedItems: ConsolidatedIngredientDto[] = [];
+  let linkedCount = 0;
+  let unlinkedCount = 0;
+  for (const i of items) {
+    if (excludedNames.has(i.name)) {
+      excludedItems.push(i);
+    } else {
+      activeItems.push(i);
+      if (i.krogerProductId) linkedCount++;
+      else unlinkedCount++;
+    }
+  }
 
   const handleLink = async (item: ConsolidatedIngredientDto, product: KrogerProductDto) => {
     if (!product.upc) return;

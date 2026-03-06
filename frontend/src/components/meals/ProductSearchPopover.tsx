@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Search, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,47 +16,36 @@ interface Props {
 
 export function ProductSearchPopover({ initialQuery = "", onSelect, children }: Props) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState(initialQuery);
-  const [results, setResults] = useState<KrogerProductDto[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const hasAutoSearched = useRef(false);
+  const [inputValue, setInputValue] = useState(initialQuery);
+  const [submittedQuery, setSubmittedQuery] = useState("");
 
   const { data: config } = useQuery({
     queryKey: ["kroger-config"],
     queryFn: getKrogerConfig,
   });
 
-  const runSearch = async (term: string, locationId?: string | null) => {
-    if (!term.trim()) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const products = await searchProducts(term.trim(), locationId ?? undefined);
-      setResults(products);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Search failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Auto-search once when the popover opens, but wait until config is loaded
-  // so the locationId is available for the search.
+  // Auto-search on open once config is available; clear on close.
   useEffect(() => {
-    if (!open) {
-      hasAutoSearched.current = false;
-      setResults([]);
-      setError(null);
-      setQuery(initialQuery);
-      return;
+    if (open) {
+      setInputValue(initialQuery);
+      setSubmittedQuery(initialQuery);
+    } else {
+      setInputValue(initialQuery);
+      setSubmittedQuery("");
     }
-    if (initialQuery && config !== undefined && !hasAutoSearched.current) {
-      hasAutoSearched.current = true;
-      setQuery(initialQuery);
-      runSearch(initialQuery, config.locationId);
-    }
-  }, [open, config]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, initialQuery]);
+
+  const { data: results = [], isFetching: loading, error } = useQuery({
+    queryKey: ["kroger-products", submittedQuery, config?.locationId],
+    queryFn: () => searchProducts(submittedQuery, config?.locationId ?? undefined),
+    enabled: open && !!submittedQuery && config !== undefined,
+    staleTime: 60_000,
+  });
+
+  const runSearch = () => {
+    const term = inputValue.trim();
+    if (term) setSubmittedQuery(term);
+  };
 
   const handleSelect = (product: KrogerProductDto) => {
     onSelect(product);
@@ -71,17 +60,21 @@ export function ProductSearchPopover({ initialQuery = "", onSelect, children }: 
           <div className="flex gap-2">
             <Input
               placeholder="Search Kroger products..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && runSearch(query, config?.locationId)}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && runSearch()}
               className="h-8 text-sm"
               autoFocus
             />
-            <Button size="sm" variant="outline" onClick={() => runSearch(query, config?.locationId)} disabled={loading}>
+            <Button size="sm" variant="outline" onClick={runSearch} disabled={loading}>
               {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
             </Button>
           </div>
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          {error && (
+            <p className="text-xs text-destructive">
+              {error instanceof Error ? error.message : "Search failed"}
+            </p>
+          )}
           {results.length > 0 && (
             <>
               {!config?.locationId && (
@@ -107,7 +100,7 @@ export function ProductSearchPopover({ initialQuery = "", onSelect, children }: 
                       )}
                       <span className="flex-1 min-w-0">
                         <span className="block font-medium leading-tight">{p.description}</span>
-                        {p.price && (
+                        {p.price != null && (
                           <span className="text-muted-foreground text-xs">${p.price.toFixed(2)}</span>
                         )}
                       </span>
@@ -117,7 +110,7 @@ export function ProductSearchPopover({ initialQuery = "", onSelect, children }: 
               </ul>
             </>
           )}
-          {results.length === 0 && !loading && query && (
+          {results.length === 0 && !loading && submittedQuery && (
             <p className="text-xs text-muted-foreground text-center py-2">No results</p>
           )}
         </div>

@@ -1,16 +1,13 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MealSelector } from "@/components/shop/MealSelector";
 import { ConsolidatedList } from "@/components/shop/ConsolidatedList";
 import { getAllMeals, consolidateMeals } from "@/api/meals";
 import { getKrogerConfig } from "@/api/config";
-import { type ConsolidatedIngredientDto } from "@/api/client";
 
 export default function ShopPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [consolidated, setConsolidated] = useState<ConsolidatedIngredientDto[]>([]);
-  const [consolidating, setConsolidating] = useState(false);
 
   const { data: meals, isLoading: mealsLoading } = useQuery({
     queryKey: ["meals"],
@@ -22,39 +19,23 @@ export default function ShopPage() {
     queryFn: getKrogerConfig,
   });
 
-  const toggleMeal = (id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
+  const {
+    mutate: consolidate,
+    reset: resetConsolidation,
+    data: consolidated = [],
+    isPending: consolidating,
+  } = useMutation({
+    mutationFn: (ids: number[]) => consolidateMeals(ids),
+  });
 
-  useEffect(() => {
-    if (selectedIds.size === 0) {
-      setConsolidated([]);
-      return;
-    }
-    let cancelled = false;
-    setConsolidating(true);
-    consolidateMeals([...selectedIds])
-      .then((result) => {
-        if (!cancelled) setConsolidated(result);
-      })
-      .catch(() => {
-        if (!cancelled) setConsolidated([]);
-      })
-      .finally(() => {
-        if (!cancelled) setConsolidating(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedIds]);
+  const toggleMeal = (id: number) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+    if (next.size === 0) resetConsolidation();
+    else consolidate([...next]);
+  };
 
   return (
     <div className="space-y-4">
@@ -93,9 +74,7 @@ export default function ShopPage() {
             mealIds={[...selectedIds]}
             hasKrogerAuth={config?.hasToken ?? false}
             onLinked={() => {
-              if (selectedIds.size > 0) {
-                consolidateMeals([...selectedIds]).then(setConsolidated).catch(() => {});
-              }
+              if (selectedIds.size > 0) consolidate([...selectedIds]);
             }}
           />
         </div>
