@@ -15,6 +15,7 @@ import { ProductSearchPopover } from "@/components/meals/ProductSearchPopover";
 import { type ConsolidatedIngredientDto, type KrogerProductDto } from "@/api/client";
 import { addToCart } from "@/api/kroger";
 import { linkProduct } from "@/api/meals";
+import { createOrder } from "@/api/orders";
 
 interface Props {
   items: ConsolidatedIngredientDto[];
@@ -63,6 +64,11 @@ export function ConsolidatedList({ items, mealIds, hasKrogerAuth, onLinked }: Pr
     try {
       const res = await addToCart(cartItems);
       setResult(res.message);
+      try {
+        await createOrder(mealIds);
+      } catch {
+        // order recording is best-effort; don't surface to user
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to add to cart");
     } finally {

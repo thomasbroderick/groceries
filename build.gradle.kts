@@ -12,7 +12,7 @@ description = "groceries"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(26)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 

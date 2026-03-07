@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Routes, Route, NavLink } from "react-router-dom";
-import { ShoppingCart, UtensilsCrossed, Settings, LogOut, Menu } from "lucide-react";
+import { ShoppingCart, UtensilsCrossed, Settings, LogOut, Menu, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import MealsPage from "@/pages/MealsPage";
 import ShopPage from "@/pages/ShopPage";
 import SettingsPage from "@/pages/SettingsPage";
+import OrdersPage from "@/pages/OrdersPage";
 import LoginPage from "@/pages/LoginPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -56,6 +57,7 @@ function AppLayout() {
           <nav className="hidden md:flex items-center gap-1">
             <NavItem to="/" icon={UtensilsCrossed} label="Meals" />
             <NavItem to="/shop" icon={ShoppingCart} label="Shop" />
+            <NavItem to="/orders" icon={ClipboardList} label="Orders" />
             <NavItem to="/settings" icon={Settings} label="Settings" />
           </nav>
 
@@ -93,6 +95,7 @@ function AppLayout() {
                 <nav className="flex flex-col gap-1 p-4 flex-1">
                   <NavItem to="/" icon={UtensilsCrossed} label="Meals" onClick={closeMenu} />
                   <NavItem to="/shop" icon={ShoppingCart} label="Shop" onClick={closeMenu} />
+                  <NavItem to="/orders" icon={ClipboardList} label="Orders" onClick={closeMenu} />
                   <NavItem to="/settings" icon={Settings} label="Settings" onClick={closeMenu} />
                 </nav>
                 {user && (
@@ -116,6 +119,7 @@ function AppLayout() {
         <Routes>
           <Route path="/" element={<ProtectedRoute><MealsPage /></ProtectedRoute>} />
           <Route path="/shop" element={<ProtectedRoute><ShopPage /></ProtectedRoute>} />
+          <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/login" element={<LoginPage />} />
         </Routes>
