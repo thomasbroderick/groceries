@@ -5,6 +5,7 @@ import dev.samhain.groceries.exception.GlobalExceptionHandler
 import dev.samhain.groceries.repository.AppUserRepository
 import dev.samhain.groceries.repository.KrogerConfigRepository
 import dev.samhain.groceries.repository.KrogerTokenRepository
+import dev.samhain.groceries.service.KrogerAuthService
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -31,6 +32,7 @@ class ConfigControllerTest {
     @Mock lateinit var krogerConfigRepository: KrogerConfigRepository
     @Mock lateinit var krogerTokenRepository: KrogerTokenRepository
     @Mock lateinit var userRepository: AppUserRepository
+    @Mock lateinit var krogerAuthService: KrogerAuthService
     lateinit var mockMvc: MockMvc
     lateinit var mockAuth: JwtAuthenticationToken
     private val userId = 1L
@@ -48,7 +50,7 @@ class ConfigControllerTest {
         SecurityContextHolder.getContext().authentication = mockAuth
 
         mockMvc = MockMvcBuilders
-            .standaloneSetup(ConfigController(krogerConfigRepository, krogerTokenRepository, userRepository))
+            .standaloneSetup(ConfigController(krogerConfigRepository, krogerTokenRepository, userRepository, krogerAuthService))
             .setControllerAdvice(GlobalExceptionHandler())
             .build()
     }

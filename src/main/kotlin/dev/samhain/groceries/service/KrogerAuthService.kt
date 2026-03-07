@@ -13,6 +13,7 @@ import org.springframework.http.MediaType
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestClient
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -95,20 +96,25 @@ class KrogerAuthService(
         existing: KrogerToken
     ): String {
         val credentials = Base64.getEncoder().encodeToString("$clientId:$clientSecret".toByteArray())
-        val response = restClient.post()
-            .uri(TOKEN_URL)
-            .header("Authorization", "Basic $credentials")
-            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-            .body("grant_type=refresh_token&refresh_token=$refreshToken")
-            .retrieve()
-            .body(KrogerTokenApiResponse::class.java)
-            ?: throw IllegalStateException("Empty response from Kroger token refresh")
+        try {
+            val response = restClient.post()
+                .uri(TOKEN_URL)
+                .header("Authorization", "Basic $credentials")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body("grant_type=refresh_token&refresh_token=$refreshToken")
+                .retrieve()
+                .body(KrogerTokenApiResponse::class.java)
+                ?: throw IllegalStateException("Empty response from Kroger token refresh")
 
-        existing.accessToken = response.access_token
-        existing.expiresAt = Instant.now().plusSeconds(response.expires_in.toLong())
-        response.refresh_token?.let { existing.refreshToken = it }
-        krogerTokenRepository.save(existing)
-        return response.access_token
+            existing.accessToken = response.access_token
+            existing.expiresAt = Instant.now().plusSeconds(response.expires_in.toLong())
+            response.refresh_token?.let { existing.refreshToken = it }
+            krogerTokenRepository.save(existing)
+            return response.access_token
+        } catch (e: HttpClientErrorException) {
+            krogerTokenRepository.delete(existing)
+            throw IllegalStateException("Kroger session expired — please reconnect in Settings")
+        }
     }
 
     fun generateAuthUrl(userId: Long): AuthUrlResponse {
