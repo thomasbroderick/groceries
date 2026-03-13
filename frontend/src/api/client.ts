@@ -112,3 +112,26 @@ export interface AuthUrlResponseDto {
   authorizationUrl: string;
   state: string;
 }
+
+export interface FitnessGoalRequest {
+  dailyCalories?: number;
+  proteinGrams?: number;
+  carbsGrams?: number;
+  fatGrams?: number;
+  dietaryRestrictions?: string[];
+  cuisinePreferences?: string[];
+  mealsPerDay?: number;
+  numberOfDays?: number;
+  notes?: string;
+}
+
+export interface MealPlanResponse {
+  summary: string;
+}
+
+export async function generateMealPlan(goals: FitnessGoalRequest): Promise<MealPlanResponse> {
+  return apiFetch<MealPlanResponse>("/api/agent/meal-plan", {
+    method: "POST",
+    body: JSON.stringify(goals),
+  });
+}
