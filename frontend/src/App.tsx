@@ -59,7 +59,7 @@ function AppLayout() {
             <NavItem to="/" icon={UtensilsCrossed} label="Meals" />
             <NavItem to="/shop" icon={ShoppingCart} label="Shop" />
             <NavItem to="/orders" icon={ClipboardList} label="Orders" />
-            <NavItem to="/meal-plan" icon={Sparkles} label="Meal Plan" />
+            {user?.canUseAi && <NavItem to="/meal-plan" icon={Sparkles} label="Meal Plan" />}
             <NavItem to="/settings" icon={Settings} label="Settings" />
           </nav>
 
@@ -98,7 +98,9 @@ function AppLayout() {
                   <NavItem to="/" icon={UtensilsCrossed} label="Meals" onClick={closeMenu} />
                   <NavItem to="/shop" icon={ShoppingCart} label="Shop" onClick={closeMenu} />
                   <NavItem to="/orders" icon={ClipboardList} label="Orders" onClick={closeMenu} />
-                  <NavItem to="/meal-plan" icon={Sparkles} label="Meal Plan" onClick={closeMenu} />
+                  {user?.canUseAi && (
+                    <NavItem to="/meal-plan" icon={Sparkles} label="Meal Plan" onClick={closeMenu} />
+                  )}
                   <NavItem to="/settings" icon={Settings} label="Settings" onClick={closeMenu} />
                 </nav>
                 {user && (
@@ -123,7 +125,7 @@ function AppLayout() {
           <Route path="/" element={<ProtectedRoute><MealsPage /></ProtectedRoute>} />
           <Route path="/shop" element={<ProtectedRoute><ShopPage /></ProtectedRoute>} />
           <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
-          <Route path="/meal-plan" element={<ProtectedRoute><MealPlanPage /></ProtectedRoute>} />
+          <Route path="/meal-plan" element={<ProtectedRoute requireAi><MealPlanPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/login" element={<LoginPage />} />
         </Routes>

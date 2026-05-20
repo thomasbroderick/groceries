@@ -12,5 +12,8 @@ class AppUser(
     var username: String = "",
 
     @Column(nullable = false)
-    var passwordHash: String = ""
+    var passwordHash: String = "",
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    var canUseAi: Boolean = false
 )

@@ -3,6 +3,7 @@ import { apiFetch } from "./client";
 export interface UserDto {
   id: number;
   username: string;
+  canUseAi: boolean;
 }
 
 export interface AuthResponse {

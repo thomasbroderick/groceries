@@ -15,9 +15,9 @@ import dev.samhain.groceries.service.MealService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 
-private val Gemini3_1FlashLitePreview = LLModel(
+private val Gemini3_1FlashLite = LLModel(
     provider = LLMProvider.Google,
-    id = "gemini-3.1-flash-lite-preview",
+    id = "gemini-3.1-flash-lite",
     capabilities = listOf(
         LLMCapability.Temperature,
         LLMCapability.Completion,
@@ -56,7 +56,7 @@ class MealPlanAgentService(
             prompt = prompt("meal-plan") {
                 system(systemPrompt)
             },
-            model = Gemini3_1FlashLitePreview,
+            model = Gemini3_1FlashLite,
             maxAgentIterations = 200
         )
         val agent = AIAgent(

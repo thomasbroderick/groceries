@@ -5,6 +5,7 @@ import dev.samhain.groceries.dto.LoginRequest
 import dev.samhain.groceries.dto.RegisterRequest
 import dev.samhain.groceries.dto.UserDto
 import dev.samhain.groceries.entity.AppUser
+import jakarta.persistence.EntityNotFoundException
 import dev.samhain.groceries.repository.AppUserRepository
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -29,7 +30,7 @@ class AuthService(
             passwordHash = passwordEncoder.encode(req.password)!!
         ))
         val token = jwtService.generateToken(user.id, user.username)
-        return AuthResponse(token = token, user = UserDto(user.id, user.username))
+        return AuthResponse(token = token, user = user.toDto())
     }
 
     fun login(req: LoginRequest): AuthResponse {
@@ -39,6 +40,18 @@ class AuthService(
             throw IllegalArgumentException("Invalid credentials")
         }
         val token = jwtService.generateToken(user.id, user.username)
-        return AuthResponse(token = token, user = UserDto(user.id, user.username))
+        return AuthResponse(token = token, user = user.toDto())
     }
+
+    @Transactional(readOnly = true)
+    fun getCurrentUser(userId: Long): UserDto =
+        userRepository.findById(userId)
+            .orElseThrow { EntityNotFoundException("User not found: $userId") }
+            .toDto()
+
+    private fun AppUser.toDto() = UserDto(
+        id = id,
+        username = username,
+        canUseAi = canUseAi
+    )
 }
